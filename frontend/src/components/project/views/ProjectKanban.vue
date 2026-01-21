@@ -104,18 +104,18 @@
 											</div>
 										</div>
 										<DropdownItem
-											icon="tags"
-											@click.stop="() => openAutoLabelsModal(bucket.id)"
-										>
-											Manage Auto-Labels
-										</DropdownItem>
-										<DropdownItem
 											v-else
 											@click.stop="showSetLimitInput = true"
 										>
 											{{
 												$t('project.kanban.limit', {limit: bucket.limit > 0 ? bucket.limit : $t('project.kanban.noLimit')})
 											}}
+										</DropdownItem>
+										<DropdownItem
+											icon="tags"
+											@click.stop="() => openAutoLabelsModal(bucket.id)"
+										>
+											Manage Auto-Labels
 										</DropdownItem>
 										<DropdownItem
 											v-tooltip="$t('project.kanban.doneBucketHintExtended')"
