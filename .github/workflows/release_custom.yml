@@ -3,6 +3,10 @@ name: Custom Release
 on:
   workflow_dispatch:
 
+permissions:
+  packages: write
+  contents: read
+
 jobs:
   docker:
     runs-on: ubuntu-latest
