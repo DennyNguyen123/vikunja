@@ -18,9 +18,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # - name: Git describe
-      #   id: ghd
-      #   uses: proudust/gh-describe@v2
+      - name: Lowercase Repo Name
+        run: |
+          echo "REPO_LOWER=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
+
       - name: Login to GHCR
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
@@ -33,7 +34,7 @@ jobs:
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: |
-            ghcr.io/${{ github.repository }}
+            ghcr.io/${{ env.REPO_LOWER }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -46,7 +47,7 @@ jobs:
           platforms: linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:unstable
+            ghcr.io/${{ env.REPO_LOWER }}:unstable
           build-args: |
             RELEASE_VERSION=${{ github.sha }}
       - name: Build and push version
