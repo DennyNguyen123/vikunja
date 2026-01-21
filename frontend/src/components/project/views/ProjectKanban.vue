@@ -456,19 +456,7 @@ async function saveAutoLabels() {
 
 	try {
 		await projectViewService.update(newView)
-		// Update local store to reflect changes immediately without reload
-		// (Though 'view' is computed, we might need to update the project in store)
-		// But projectViewService.update usually returns the updated view.
-		// For now, let's assume a reload or store update happens. 
-		// Actually, projectStore.updateView might be better if it exists, 
-		// or we just trust the reload/reactivity. 
-		// Let's force a refresh of the project views or patch the store object.
-		const updatedProject = klona(project.value)
-		const viewIndex = updatedProject?.views.findIndex(v => v.id === newView.id)
-		if (updatedProject && viewIndex !== undefined && viewIndex !== -1) {
-			updatedProject.views[viewIndex] = newView
-			projectStore.addProject(updatedProject)
-		}
+		projectStore.setProjectView(newView)
 		
 		success({message: 'Auto-labels saved successfully'})
 		showAutoLabelsModal.value = false
