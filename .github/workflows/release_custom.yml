@@ -1,0 +1,55 @@
+name: Custom Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git describe
+        id: ghd
+        uses: proudust/gh-describe@v2
+      - name: Login to GHCR
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Docker meta version
+        if: ${{ github.ref_type == 'tag' }}
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest
+      - name: Build and push unstable
+        if: ${{ github.ref_type != 'tag' }}
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          platforms: linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:unstable
+          build-args: |
+            RELEASE_VERSION=${{ steps.ghd.outputs.describe }}
+      - name: Build and push version
+        if: ${{ github.ref_type == 'tag' }}
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          platforms: linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64/v8
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            RELEASE_VERSION=${{ steps.ghd.outputs.describe }}
