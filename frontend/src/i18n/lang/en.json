@@ -909,7 +909,10 @@
       "setAsCover": "Make cover",
       "unsetAsCover": "Remove cover",
       "successfullyChangedCoverImage": "The cover image was successfully changed.",
-      "usedAsCover": "Cover image"
+      "usedAsCover": "Cover image",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomReset": "Reset zoom"
     },
     "comment": {
       "title": "Comments",

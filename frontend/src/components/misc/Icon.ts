@@ -80,6 +80,7 @@ import {
 	faParagraph,
 	faTable,
 	faX, faArrowTurnDown, faListCheck, faXmark, faXmarksLines, faFont, faRulerHorizontal, faUnderline,
+	faSearchPlus, faSearchMinus, faCompress,
 } from '@fortawesome/free-solid-svg-icons'
 import {
 	faBellSlash,
@@ -99,6 +100,9 @@ import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome'
 import type {FontAwesomeIcon as FontAwesomeIconFixedTypes} from '@/types/vue-fontawesome'
 
 library.add(faBold)
+library.add(faSearchPlus)
+library.add(faSearchMinus)
+library.add(faCompress)
 library.add(faUndo)
 library.add(faRedo)
 library.add(faItalic)

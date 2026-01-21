@@ -161,12 +161,42 @@
 		<!-- Attachment image modal -->
 		<Modal
 			:enabled="attachmentImageBlobUrl !== null"
+			class="attachment-modal"
 			@close="attachmentImageBlobUrl = null"
 		>
-			<img
-				:src="attachmentImageBlobUrl"
-				alt=""
+			<div
+				class="image-wrapper"
+				:style="{ width: `${zoomLevel * 100}%` }"
+				@wheel.prevent="onWheel"
 			>
+				<img
+					:src="attachmentImageBlobUrl"
+					alt=""
+				>
+			</div>
+			<div class="zoom-controls">
+				<BaseButton
+					class="zoom-button"
+					:title="t('task.attachment.zoomIn')"
+					@click.stop="zoomIn"
+				>
+					<Icon icon="search-plus" />
+				</BaseButton>
+				<BaseButton
+					class="zoom-button"
+					:title="t('task.attachment.zoomReset')"
+					@click.stop="resetZoom"
+				>
+					<Icon icon="compress-arrows-alt" />
+				</BaseButton>
+				<BaseButton
+					class="zoom-button"
+					:title="t('task.attachment.zoomOut')"
+					@click.stop="zoomOut"
+				>
+					<Icon icon="search-minus" />
+				</BaseButton>
+			</div>
 		</Modal>
 	</div>
 </template>
@@ -362,6 +392,32 @@ async function setCoverImage(attachment: IAttachment | null) {
 	emit('taskChanged', updatedTask)
 	success({message: t('task.attachment.successfullyChangedCoverImage')})
 }
+
+const zoomLevel = ref(1)
+
+function zoomIn() {
+	zoomLevel.value += 0.25
+}
+
+function zoomOut() {
+	zoomLevel.value = Math.max(0.25, zoomLevel.value - 0.25)
+}
+
+function resetZoom() {
+	zoomLevel.value = 1
+}
+
+function onWheel(e: WheelEvent) {
+	if (e.deltaY < 0) {
+		zoomIn()
+	} else {
+		zoomOut()
+	}
+}
+
+watch(attachmentImageBlobUrl, () => {
+	zoomLevel.value = 1
+})
 </script>
 
 <style lang="scss" scoped>
@@ -556,5 +612,73 @@ async function setCoverImage(attachment: IAttachment | null) {
 	padding: .25rem .35rem;
 	border-radius: 4px;
 	font-size: .75rem;
+}
+
+.attachment-modal {
+	:deep(.modal-content) {
+		position: static;
+		transform: none;
+		margin: auto;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-block-size: 100%;
+		max-inline-size: none;
+		inline-size: auto;
+		padding: 2rem;
+		background: transparent;
+		box-shadow: none;
+	}
+	
+	:deep(.modal-container) {
+		background: rgba(0, 0, 0, 0.9);
+	}
+}
+
+.image-wrapper {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	transition: width 0.1s ease-out;
+	
+	img {
+		max-inline-size: none;
+		display: block;
+		box-shadow: 0 0 20px rgba(0,0,0,0.5);
+	}
+}
+
+.zoom-controls {
+	position: fixed;
+	inset-block-end: 2rem;
+	inset-inline-start: 50%;
+	transform: translateX(-50%);
+	background: rgba(40, 40, 40, 0.8);
+	backdrop-filter: blur(10px);
+	padding: 0.5rem 1rem;
+	border-radius: 2rem;
+	display: flex;
+	gap: 1rem;
+	z-index: 100;
+	border: 1px solid rgba(255,255,255,0.1);
+
+	.button {
+		color: var(--white);
+		background: transparent;
+		border: none;
+		width: 2.5rem;
+		height: 2.5rem;
+		padding: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		font-size: 1.2rem;
+		transition: background 0.2s;
+
+		&:hover {
+			background: rgba(255, 255, 255, 0.2);
+		}
+	}
 }
 </style>
