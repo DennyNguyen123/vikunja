@@ -421,7 +421,7 @@ function openAutoLabelsModal(bucketId: number) {
 		// Assuming project labels are already loaded or available in labelStore
 		// We might need to ensure they are loaded if not present
 		autoLabels.value = config.auto_label_ids
-			.map(id => labelStore.labels.find(l => l.id === id))
+			.map(id => labelStore.getLabelById(id))
 			.filter((l): l is ILabel => l !== undefined)
 	} else {
 		autoLabels.value = []
@@ -704,7 +704,7 @@ async function updateTaskPosition(e) {
 
 			// Remove labels
 			for (const labelId of labelsToRemove) {
-				const label = labelStore.labels.find(l => l.id === labelId)
+				const label = labelStore.getLabelById(labelId)
 				if (label) {
 					await taskStore.removeLabel({ label, taskId: newTask.id })
 				}
@@ -712,7 +712,7 @@ async function updateTaskPosition(e) {
 
 			// Add labels
 			for (const labelId of labelsToAdd) {
-				const label = labelStore.labels.find(l => l.id === labelId)
+				const label = labelStore.getLabelById(labelId)
 				if (label) {
 					// Check if task already has this label to avoid redundant API calls?
 					// taskStore.addLabel usually handles check or is idempotent-ish?
