@@ -18,9 +18,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Git describe
-        id: ghd
-        uses: proudust/gh-describe@v2
+      # - name: Git describe
+      #   id: ghd
+      #   uses: proudust/gh-describe@v2
       - name: Login to GHCR
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
         with:
@@ -48,7 +48,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:unstable
           build-args: |
-            RELEASE_VERSION=${{ steps.ghd.outputs.describe }}
+            RELEASE_VERSION=${{ github.sha }}
       - name: Build and push version
         if: ${{ github.ref_type == 'tag' }}
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
@@ -58,4 +58,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            RELEASE_VERSION=${{ steps.ghd.outputs.describe }}
+            RELEASE_VERSION=${{ github.ref_name }}
