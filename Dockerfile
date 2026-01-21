@@ -27,9 +27,18 @@ COPY --from=frontendbuilder /build/dist ./frontend/dist
 ARG TARGETOS TARGETARCH TARGETVARIANT RELEASE_VERSION
 ENV RELEASE_VERSION=$RELEASE_VERSION
 
-RUN export PATH=$PATH:$GOPATH/bin && \
+RUN case "$TARGETARCH" in \
+	"amd64") export CC=x86_64-linux-gnu-gcc ;; \
+	"arm64") export CC=aarch64-linux-gnu-gcc ;; \
+	"arm") export CC=arm-linux-gnueabihf-gcc ;; \
+	*) echo "Unsupported architecture: $TARGETARCH" && exit 1 ;; \
+	esac && \
+	export PATH=$PATH:$GOPATH/bin && \
 	mage build:clean && \
-    mage release:xgo "${TARGETOS}/${TARGETARCH}/${TARGETVARIANT}"
+	CGO_ENABLED=1 GOOS=$TARGETOS GOARCH=$TARGETARCH go build \
+	-tags "netgo" \
+	-ldflags "-linkmode external -extldflags '-static' -X code.vikunja.io/api/pkg/version.Version=$RELEASE_VERSION" \
+	-o vikunja-$RELEASE_VERSION .
 
 #  ┬─┐┬ ┐┌┐┐┌┐┐┬─┐┬─┐
 #  │┬┘│ │││││││├─ │┬┘
@@ -53,5 +62,5 @@ USER 1000
 ENV VIKUNJA_SERVICE_ROOTPATH=/app/vikunja/
 ENV VIKUNJA_DATABASE_PATH=/db/vikunja.db
 
-COPY --from=apibuilder /build/vikunja-* vikunja
+COPY --from=apibuilder /go/src/code.vikunja.io/api/vikunja-* vikunja
 COPY --from=apibuilder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
