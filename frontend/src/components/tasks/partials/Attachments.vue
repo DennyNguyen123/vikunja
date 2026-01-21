@@ -165,12 +165,21 @@
 			@close="attachmentImageBlobUrl = null"
 		>
 			<div
+				ref="imageWrapperRef"
 				class="image-wrapper"
-				:style="{ width: `${zoomLevel * 100}%` }"
 				@wheel.prevent="onWheel"
+				@mousedown="startDrag"
+				@mousemove="onDrag"
+				@mouseup="stopDrag"
+				@mouseleave="stopDrag"
 			>
 				<img
 					:src="attachmentImageBlobUrl"
+					:style="{
+						transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+						cursor: isDragging ? 'grabbing' : 'grab',
+					}"
+					draggable="false"
 					alt=""
 				>
 			</div>
@@ -202,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, shallowReactive, computed, watch} from 'vue'
+import {ref, shallowReactive, computed, watch, reactive} from 'vue'
 import {useDropZone} from '@vueuse/core'
 
 import User from '@/components/misc/User.vue'
@@ -393,30 +402,90 @@ async function setCoverImage(attachment: IAttachment | null) {
 	success({message: t('task.attachment.successfullyChangedCoverImage')})
 }
 
-const zoomLevel = ref(1)
+// ZOOM & PAN LOGIC
+const imageWrapperRef = ref<HTMLElement | null>(null)
+const transform = reactive({
+	scale: 1,
+	x: 0,
+	y: 0,
+})
+const isDragging = ref(false)
+const startPan = { x: 0, y: 0 }
 
 function zoomIn() {
-	zoomLevel.value += 0.25
+	applyZoom(0.25)
 }
 
 function zoomOut() {
-	zoomLevel.value = Math.max(0.25, zoomLevel.value - 0.25)
+	applyZoom(-0.25)
+}
+
+function applyZoom(delta: number) {
+	const newScale = Math.max(0.1, transform.scale + delta)
+	transform.scale = newScale
 }
 
 function resetZoom() {
-	zoomLevel.value = 1
+	transform.scale = 1
+	transform.x = 0
+	transform.y = 0
 }
 
 function onWheel(e: WheelEvent) {
-	if (e.deltaY < 0) {
-		zoomIn()
-	} else {
-		zoomOut()
+	const zoomIntensity = 0.1
+	const direction = e.deltaY < 0 ? 1 : -1
+	const factor = direction * zoomIntensity
+	const newScale = Math.max(0.1, transform.scale + (transform.scale * factor))
+
+	// Zoom towards cursor logic
+	// 1. Get cursor position relative to the image wrapper center
+	// Note: We assume the image wrapper is centered in the viewport
+	if (imageWrapperRef.value) {
+		const rect = imageWrapperRef.value.getBoundingClientRect()
+		
+		// Mouse position relative to the element
+		const mouseX = e.clientX - rect.left
+		const mouseY = e.clientY - rect.top
+
+		// Center of the element
+		const centerX = rect.width / 2
+		const centerY = rect.height / 2
+
+		// Calculate offset from center
+		const offsetX = mouseX - centerX
+		const offsetY = mouseY - centerY
+
+		// Adjust translation to keep the point under cursor stable
+		// Formula: newTranslate = oldTranslate - (offset / oldScale) * (newScale - oldScale) 
+		// Simpler approximation for "zoom to point":
+		// We want to shift the image so that the point under the mouse remains in the same screen position.
+		// The shift needed is proportional to the distance from center and the change in scale.
+		
+		transform.x -= (offsetX - transform.x) * (newScale / transform.scale - 1)
+		transform.y -= (offsetY - transform.y) * (newScale / transform.scale - 1)
 	}
+
+	transform.scale = newScale
+}
+
+function startDrag(e: MouseEvent) {
+	isDragging.value = true
+	startPan.x = e.clientX - transform.x
+	startPan.y = e.clientY - transform.y
+}
+
+function onDrag(e: MouseEvent) {
+	if (!isDragging.value) return
+	transform.x = e.clientX - startPan.x
+	transform.y = e.clientY - startPan.y
+}
+
+function stopDrag() {
+	isDragging.value = false
 }
 
 watch(attachmentImageBlobUrl, () => {
-	zoomLevel.value = 1
+	resetZoom()
 })
 </script>
 
@@ -624,10 +693,11 @@ watch(attachmentImageBlobUrl, () => {
 		align-items: center;
 		min-block-size: 100%;
 		max-inline-size: none;
-		inline-size: auto;
-		padding: 2rem;
+		inline-size: 100%; /* Changed from auto to 100% */
+		padding: 0; /* Remove padding to maximize space */
 		background: transparent;
 		box-shadow: none;
+		overflow: hidden; /* Hide overflow to handle zoomed image */
 	}
 	
 	:deep(.modal-container) {
@@ -636,15 +706,21 @@ watch(attachmentImageBlobUrl, () => {
 }
 
 .image-wrapper {
+	width: 100%;
+	height: 100vh;
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	transition: width 0.1s ease-out;
+	overflow: hidden;
 	
 	img {
-		max-inline-size: none;
+		max-inline-size: 70vw; /* Initial size 70% width */
+		max-block-size: 70vh; /* Initial size 70% height */
+		object-fit: contain;
 		display: block;
 		box-shadow: 0 0 20px rgba(0,0,0,0.5);
+		transition: transform 0.1s ease-out; /* Smooth zoom transition */
+		will-change: transform;
 	}
 }
 
