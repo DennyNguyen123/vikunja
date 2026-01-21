@@ -714,8 +714,8 @@ watch(attachmentImageBlobUrl, () => {
 	overflow: hidden;
 	
 	img {
-		max-inline-size: 70vw; /* Initial size 70% width */
-		max-block-size: 70vh; /* Initial size 70% height */
+		max-inline-size: 100%;
+		max-block-size: 100%;
 		object-fit: contain;
 		display: block;
 		box-shadow: 0 0 20px rgba(0,0,0,0.5);
