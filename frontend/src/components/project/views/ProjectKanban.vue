@@ -338,7 +338,7 @@ import {calculateItemPosition} from '@/helpers/calculateItemPosition'
 
 import {isSavedFilter, useSavedFilter} from '@/services/savedFilter'
 import {useTaskDragToProject} from '@/composables/useTaskDragToProject'
-import {success} from '@/message'
+import {success, error} from '@/message'
 import {useProjectStore} from '@/stores/projects'
 import type {TaskFilterParams} from '@/services/taskCollection'
 import type {IProjectView} from '@/modelTypes/IProjectView'
@@ -472,9 +472,9 @@ async function saveAutoLabels() {
 		
 		success({message: 'Auto-labels saved successfully'})
 		showAutoLabelsModal.value = false
-	} catch (e) {
-		// error(e)
-		console.error(e)
+	} catch (e: any) { // Type as any for now to access message
+		error({ message: e.message || 'Failed to save auto-labels' })
+		console.error('Failed to save auto-labels:', e)
 	}
 }
 
