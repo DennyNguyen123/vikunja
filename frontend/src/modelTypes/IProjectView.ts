@@ -22,6 +22,8 @@ export type ProjectViewBucketConfigurationMode = typeof PROJECT_VIEW_BUCKET_CONF
 export interface IProjectViewBucketConfiguration {
 	title: string
 	filter: IFilters
+	bucket_id?: number
+	auto_label_ids?: number[]
 }
 
 export interface IProjectView extends IAbstract {

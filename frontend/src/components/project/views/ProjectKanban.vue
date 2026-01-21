@@ -104,6 +104,12 @@
 											</div>
 										</div>
 										<DropdownItem
+											icon="tags"
+											@click.stop="() => openAutoLabelsModal(bucket.id)"
+										>
+											Manage Auto-Labels
+										</DropdownItem>
+										<DropdownItem
 											v-else
 											@click.stop="showSetLimitInput = true"
 										>
@@ -274,6 +280,23 @@
 						</p>
 					</template>
 				</Modal>
+				<Modal
+					:enabled="showAutoLabelsModal"
+					@close="showAutoLabelsModal = false"
+					@submit="saveAutoLabels"
+				>
+					<template #header>
+						<span>Manage Auto-Labels</span>
+					</template>
+
+					<template #text>
+						<p class="mb-4">Select labels that will be automatically assigned when a task is moved to this column.</p>
+						<EditLabels
+							v-model="autoLabels"
+							:task-id="0"
+						/>
+					</template>
+				</Modal>
 			</div>
 		</template>
 	</ProjectWrapper>
@@ -302,6 +325,9 @@ import FilterPopup from '@/components/project/partials/FilterPopup.vue'
 import KanbanCard from '@/components/tasks/partials/KanbanCard.vue'
 import Dropdown from '@/components/misc/Dropdown.vue'
 import DropdownItem from '@/components/misc/DropdownItem.vue'
+import EditLabels from '@/components/tasks/partials/EditLabels.vue'
+import type { ILabel } from '@/modelTypes/ILabel'
+import { useLabelStore } from '@/stores/labels'
 
 import {
 	type CollapsedBuckets,
@@ -355,6 +381,8 @@ const alwaysShowBucketTaskCount = computed(() => authStore.settings.frontendSett
 const {handleTaskDropToProject} = useTaskDragToProject()
 const taskPositionService = ref(new TaskPositionService())
 const taskBucketService = ref(new TaskBucketService())
+const projectViewService = new ProjectViewService()
+const labelStore = useLabelStore()
 
 // Saved filter composable for accessing filter data
 const savedFilter = useSavedFilter(() => isSavedFilter({id: projectId.value}) ? projectId.value : undefined).filter
@@ -380,6 +408,75 @@ const newTaskInputFocused = ref(false)
 
 const showSetLimitInput = ref(false)
 const collapsedBuckets = ref<CollapsedBuckets>({})
+
+const showAutoLabelsModal = ref(false)
+const bucketForAutoLabels = ref<number>(0)
+const autoLabels = ref<ILabel[]>([])
+
+function openAutoLabelsModal(bucketId: number) {
+	bucketForAutoLabels.value = bucketId
+	const config = view.value?.bucketConfiguration.find(c => c.bucket_id === bucketId)
+	if (config && config.auto_label_ids) {
+		// Ensure labels are loaded or filtered from store
+		// Assuming project labels are already loaded or available in labelStore
+		// We might need to ensure they are loaded if not present
+		autoLabels.value = config.auto_label_ids
+			.map(id => labelStore.labels.find(l => l.id === id))
+			.filter((l): l is ILabel => l !== undefined)
+	} else {
+		autoLabels.value = []
+	}
+	showAutoLabelsModal.value = true
+}
+
+async function saveAutoLabels() {
+	if (!view.value) return
+
+	const newView = new ProjectViewModel(view.value)
+	let config = newView.bucketConfiguration.find(c => c.bucket_id === bucketForAutoLabels.value)
+	
+	const labelIds = autoLabels.value.map(l => l.id)
+
+	if (config) {
+		config.auto_label_ids = labelIds
+	} else {
+		// Create new config if doesn't exist
+		// We need to match the structure expected by backend
+		// Since existing configs might rely on index in 'filter' mode, 
+		// but in manual mode we use bucket_id. 
+		// Note: The backend logic for ConfigModeManual might largely ignore this array 
+		// except for what we explicitly store.
+		newView.bucketConfiguration.push({
+			title: '',
+			filter: { filter: '' }, // Dummy filter
+			bucket_id: bucketForAutoLabels.value,
+			auto_label_ids: labelIds,
+		})
+	}
+
+	try {
+		await projectViewService.update(newView)
+		// Update local store to reflect changes immediately without reload
+		// (Though 'view' is computed, we might need to update the project in store)
+		// But projectViewService.update usually returns the updated view.
+		// For now, let's assume a reload or store update happens. 
+		// Actually, projectStore.updateView might be better if it exists, 
+		// or we just trust the reload/reactivity. 
+		// Let's force a refresh of the project views or patch the store object.
+		const updatedProject = klona(project.value)
+		const viewIndex = updatedProject?.views.findIndex(v => v.id === newView.id)
+		if (updatedProject && viewIndex !== undefined && viewIndex !== -1) {
+			updatedProject.views[viewIndex] = newView
+			projectStore.addProject(updatedProject)
+		}
+		
+		success({message: 'Auto-labels saved successfully'})
+		showAutoLabelsModal.value = false
+	} catch (e) {
+		// error(e)
+		console.error(e)
+	}
+}
 
 // We're using this to show the loading animation only at the task when updating it
 const taskUpdating = ref<{ [id: ITask['id']]: boolean }>({})
@@ -605,6 +702,41 @@ async function updateTaskPosition(e) {
 	} finally {
 		taskUpdating.value[task.id] = false
 		oneTaskUpdating.value = false
+		
+		// Handle Auto-Labels
+		if (bucketHasChanged && view.value?.bucketConfiguration) {
+			const oldConfig = view.value.bucketConfiguration.find(c => c.bucket_id === oldBucket?.id)
+			const newConfig = view.value.bucketConfiguration.find(c => c.bucket_id === newBucket.id)
+
+			const oldLabels = oldConfig?.auto_label_ids || []
+			const newLabels = newConfig?.auto_label_ids || []
+
+			const labelsToRemove = oldLabels.filter(id => !newLabels.includes(id))
+			const labelsToAdd = newLabels
+
+			// Remove labels
+			for (const labelId of labelsToRemove) {
+				const label = labelStore.labels.find(l => l.id === labelId)
+				if (label) {
+					await taskStore.removeLabel({ label, taskId: newTask.id })
+				}
+			}
+
+			// Add labels
+			for (const labelId of labelsToAdd) {
+				const label = labelStore.labels.find(l => l.id === labelId)
+				if (label) {
+					// Check if task already has this label to avoid redundant API calls?
+					// taskStore.addLabel usually handles check or is idempotent-ish?
+					// Using 'some' on task.labels (if available) would be good. 
+					// newTask.labels might be populated.
+					const hasLabel = newTask.labels?.some(l => l.id === labelId)
+					if (!hasLabel) {
+						await taskStore.addLabel({ label, taskId: newTask.id })
+					}
+				}
+			}
+		}
 	}
 }
 
