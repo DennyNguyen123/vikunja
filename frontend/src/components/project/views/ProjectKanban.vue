@@ -415,12 +415,12 @@ const autoLabels = ref<ILabel[]>([])
 
 function openAutoLabelsModal(bucketId: number) {
 	bucketForAutoLabels.value = bucketId
-	const config = view.value?.bucketConfiguration.find(c => c.bucket_id === bucketId)
-	if (config && config.auto_label_ids) {
+	const config = view.value?.bucketConfiguration.find(c => c.bucketId === bucketId)
+	if (config && config.autoLabelIds) {
 		// Ensure labels are loaded or filtered from store
 		// Assuming project labels are already loaded or available in labelStore
 		// We might need to ensure they are loaded if not present
-		autoLabels.value = config.auto_label_ids
+		autoLabels.value = config.autoLabelIds
 			.map(id => labelStore.getLabelById(id))
 			.filter((l): l is ILabel => l !== undefined)
 	} else {
@@ -433,12 +433,12 @@ async function saveAutoLabels() {
 	if (!view.value) return
 
 	const newView = new ProjectViewModel(view.value)
-	let config = newView.bucketConfiguration.find(c => c.bucket_id === bucketForAutoLabels.value)
+	let config = newView.bucketConfiguration.find(c => c.bucketId === bucketForAutoLabels.value)
 	
 	const labelIds = autoLabels.value.map(l => l.id)
 
 	if (config) {
-		config.auto_label_ids = labelIds
+		config.autoLabelIds = labelIds
 	} else {
 		// Create new config if doesn't exist
 		// We need to match the structure expected by backend
@@ -449,8 +449,8 @@ async function saveAutoLabels() {
 		newView.bucketConfiguration.push({
 			title: '',
 			filter: { filter: '' }, // Dummy filter
-			bucket_id: bucketForAutoLabels.value,
-			auto_label_ids: labelIds,
+			bucketId: bucketForAutoLabels.value,
+			autoLabelIds: labelIds,
 		})
 	}
 
@@ -693,11 +693,11 @@ async function updateTaskPosition(e) {
 		
 		// Handle Auto-Labels
 		if (bucketHasChanged && view.value?.bucketConfiguration) {
-			const oldConfig = view.value.bucketConfiguration.find(c => c.bucket_id === oldBucket?.id)
-			const newConfig = view.value.bucketConfiguration.find(c => c.bucket_id === newBucket.id)
+			const oldConfig = view.value.bucketConfiguration.find(c => c.bucketId === oldBucket?.id)
+			const newConfig = view.value.bucketConfiguration.find(c => c.bucketId === newBucket.id)
 
-			const oldLabels = oldConfig?.auto_label_ids || []
-			const newLabels = newConfig?.auto_label_ids || []
+			const oldLabels = oldConfig?.autoLabelIds || []
+			const newLabels = newConfig?.autoLabelIds || []
 
 			const labelsToRemove = oldLabels.filter(id => !newLabels.includes(id))
 			const labelsToAdd = newLabels
